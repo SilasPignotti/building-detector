@@ -49,7 +49,8 @@ const MapModule = (function() {
                 circlemarker: false,
                 polyline: false,
                 marker: {
-                    icon: new L.Icon.Default()
+                    icon: new L.Icon.Default(),
+                    repeatMode: true  // Keep marker mode active after placing a marker
                 },
                 rectangle: {
                     shapeOptions: {
@@ -76,28 +77,39 @@ const MapModule = (function() {
         
         // Set up draw listeners
         _map.on('draw:created', function(e) {
+            const type = e.layerType;
             const layer = e.layer;
             
-            // If it's a rectangle, enable satellite download
-            if (e.layerType === 'rectangle') {
-                // Clear previous drawings
+            // Handle different layer types
+            if (type === 'rectangle') {
+                // Clear previously drawn rectangles
                 _drawnItems.clearLayers();
                 
-                // Add the new layer
+                // Add the newly drawn rectangle
                 _drawnItems.addLayer(layer);
                 
-                // Enable satellite download button
+                _hasDrawnRectangle = true;
                 document.getElementById('get-satellite-btn').disabled = false;
                 
-                _hasDrawnRectangle = true;
+                // Hide statistics panel when drawing a new area
+                hideStatisticsPanel();
                 
-                // Update status
-                UIModule.updateStatus("Area selected", true);
-            }
-            
-            // If it's a marker, add to marker group instead
-            if (e.layerType === 'marker') {
+                // Clear previously added building layer if it exists
+                if (_currentBuildingLayer) {
+                    _map.removeLayer(_currentBuildingLayer);
+                    _currentBuildingLayer = null;
+                    document.getElementById('building-count').textContent = '0';
+                }
+                
+                // Clear bounds cache
+                clearBoundsCache();
+            } 
+            else if (type === 'marker') {
+                // For markers, just add to marker group without clearing existing ones
                 _markerGroup.addLayer(layer);
+                
+                // Enable detect buildings button if we have at least one marker
+                document.getElementById('detect-buildings-btn').disabled = false;
             }
         });
         
@@ -110,6 +122,22 @@ const MapModule = (function() {
                 _hasDrawnRectangle = false;
                 document.getElementById('get-satellite-btn').disabled = true;
                 UIModule.updateStatus("Draw an area to begin", true);
+            }
+        });
+
+        // Initialize markers for building detection
+        _map.on('draw:drawstart', function (e) {
+            if (e.layerType === 'marker') {
+                // Don't clear existing markers when placing new ones
+                // Only hide statistics panel
+                hideStatisticsPanel();
+                
+                // Clear building layer if it exists
+                if (_currentBuildingLayer) {
+                    _map.removeLayer(_currentBuildingLayer);
+                    _currentBuildingLayer = null;
+                    document.getElementById('building-count').textContent = '0';
+                }
             }
         });
     }
@@ -160,6 +188,9 @@ const MapModule = (function() {
         const buildingCount = geojsonData.features ? geojsonData.features.length : 0;
         document.getElementById('building-count').textContent = buildingCount;
         
+        // Calculate building statistics
+        calculateBuildingStatistics(geojsonData);
+        
         // Enable export buttons
         document.getElementById('download-geojson-btn').disabled = false;
         document.getElementById('download-osm-btn').disabled = false;
@@ -168,6 +199,95 @@ const MapModule = (function() {
         UIModule.updateStatus("Buildings detected", true);
         
         return buildingCount;
+    }
+    
+    // Calculate and display building statistics
+    function calculateBuildingStatistics(geojsonData) {
+        if (!geojsonData.features || geojsonData.features.length === 0) {
+            return;
+        }
+        
+        const features = geojsonData.features;
+        const buildingCount = features.length;
+        
+        // Calculate areas
+        let totalArea = 0;
+        let minArea = Infinity;
+        let maxArea = 0;
+        
+        for (const feature of features) {
+            try {
+                // Get area directly from properties if available
+                let area = feature.properties.area;
+                
+                // If area property is not available, calculate using turf
+                if (!area || area <= 0) {
+                    try {
+                        area = turf.area(feature);
+                    } catch (calcError) {
+                        console.warn('Error calculating area with turf:', calcError);
+                        // Fallback to simple calculation if turf fails
+                        const polygon = feature.geometry.coordinates[0];
+                        area = calculatePolygonArea(polygon);
+                    }
+                }
+                
+                // Only add valid areas
+                if (area && area > 0) {
+                    totalArea += area;
+                    minArea = Math.min(minArea, area);
+                    maxArea = Math.max(maxArea, area);
+                }
+            } catch (error) {
+                console.warn('Error processing feature:', error);
+            }
+        }
+        
+        const avgArea = buildingCount > 0 ? totalArea / buildingCount : 0;
+        
+        // Ensure minArea is valid
+        if (minArea === Infinity || buildingCount === 0) {
+            minArea = 0;
+        }
+        
+        // Update statistics panel
+        document.getElementById('stat-building-count').textContent = buildingCount;
+        document.getElementById('stat-total-area').textContent = formatArea(totalArea);
+        document.getElementById('stat-avg-area').textContent = formatArea(avgArea);
+        document.getElementById('stat-min-area').textContent = formatArea(minArea);
+        document.getElementById('stat-max-area').textContent = formatArea(maxArea);
+        
+        // Show the statistics panel
+        document.getElementById('statistics-panel').classList.remove('hidden');
+    }
+    
+    // Calculate polygon area using a simple algorithm (fallback)
+    function calculatePolygonArea(polygon) {
+        // Simple implementation of the Shoelace formula
+        let area = 0;
+        const n = polygon.length;
+        
+        for (let i = 0; i < n - 1; i++) {
+            area += polygon[i][0] * polygon[i+1][1] - polygon[i+1][0] * polygon[i][1];
+        }
+        // Close the polygon
+        area += polygon[n-1][0] * polygon[0][1] - polygon[0][0] * polygon[n-1][1];
+        
+        // Apply a scaling factor for geographic coordinates (rough approximation)
+        // This approximation works for small areas but is not accurate for large regions
+        const scale = 10000; // rough scaling for lat/lon to meters
+        return Math.abs(area * scale / 2);
+    }
+    
+    // Format area for display
+    function formatArea(area) {
+        if (!area || area <= 0) return "0 m²";
+        
+        if (area >= 1000000) {
+            return `${(area / 1000000).toFixed(2)} km²`;
+        } else {
+            return `${Math.round(area)} m²`;
+        }
     }
 
     // Add satellite image overlay to the map
@@ -213,15 +333,22 @@ const MapModule = (function() {
         return points;
     }
 
+    // Hide statistics panel
+    function hideStatisticsPanel() {
+        document.getElementById('statistics-panel').classList.add('hidden');
+    }
+
     // Public API
     return {
         init: init,
         getBounds: getBounds,
+        clearBoundsCache: clearBoundsCache,
         addGeoJSONLayer: addGeoJSONLayer,
         addSatelliteOverlay: addSatelliteOverlay,
         getDrawnRectangleBounds: getDrawnRectangleBounds,
         hasDrawnRectangle: hasDrawnRectangle,
-        getMarkersAsPoints: getMarkersAsPoints
+        getMarkersAsPoints: getMarkersAsPoints,
+        hideStatisticsPanel: hideStatisticsPanel
     };
 })();
 
@@ -312,7 +439,6 @@ const UIModule = (function() {
 const APIModule = (function() {
     // Get satellite image for the current view
     async function getSatelliteImage() {
-        // Use the bounds of the drawn rectangle, if available
         const bounds = MapModule.getDrawnRectangleBounds() || MapModule.getBounds();
         
         const data = {
@@ -324,8 +450,14 @@ const APIModule = (function() {
 
         try {
             UIModule.showLoading();
-            UIModule.updateStatus("Downloading satellite image...", false);
+            UIModule.updateStatus("Downloading satellite imagery...", false);
             
+            // Hide statistics panel when getting a new satellite image
+            MapModule.hideStatisticsPanel();
+            
+            // Reset building count
+            document.getElementById('building-count').textContent = '0';
+
             const response = await fetch('/get_satellite', {
                 method: 'POST',
                 headers: {
