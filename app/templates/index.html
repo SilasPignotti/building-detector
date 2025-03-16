@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OSM Building Detector</title>
+    <title>Building Detector</title>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,74 +20,134 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     
+    <!-- Leaflet Icon Fixes -->
+    <style>
+        /* Direct overrides for Leaflet controls */
+        .leaflet-control-zoom a,
+        .leaflet-draw-toolbar a {
+            width: 30px !important;
+            height: 30px !important;
+            line-height: 30px !important;
+            text-align: center !important;
+            margin: 0 0 5px 0 !important;
+            display: block !important;
+        }
+        
+        /* Force better icon centering - this targets the actual SVG icons */
+        .leaflet-draw-toolbar a span {
+            background-position: center center !important;
+            display: inline-block !important;
+            width: 30px !important;
+            height: 30px !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        
+        /* Specific fixes for zoom controls */
+        .leaflet-control-zoom-in, 
+        .leaflet-control-zoom-out {
+            text-align: center !important;
+            vertical-align: middle !important;
+        }
+    </style>
+    
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    
+    <!-- Turf.js for geographic calculations -->
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <header class="header">
-            <div class="logo">
-                <img src="{{ url_for('static', filename='Logo.png') }}" alt="OSM Building Detector Logo">
-                <h1>OSM Building Detector</h1>
-            </div>
-        </header>
-        
         <div class="content">
             <aside class="sidebar">
-                <div class="workflow-section">
-                    <h2 class="section-title"><span class="number">1</span>Area Selection</h2>
-                    <div class="instructions">
-                        Draw a rectangle on the map to select an area of interest for building detection.
-                        <div class="tool-hint">
-                            <i class="fas fa-square-full"></i> Use the rectangle tool <i class="fas fa-arrow-right"></i> on the left side of the map
-                        </div>
+                <header class="header">
+                    <div class="logo">
+                        <img src="{{ url_for('static', filename='Logo.png') }}" alt="Building Detector Logo">
+                        <h1>Building Detector</h1>
                     </div>
-                </div>
+                </header>
                 
-                <div class="workflow-section">
-                    <h2 class="section-title"><span class="number">2</span>Satellite Image</h2>
-                    <div class="instructions">
-                        Download the satellite imagery for the selected area to prepare for detection.
-                    </div>
-                    <button id="get-satellite-btn" class="button" disabled>Download Satellite Image</button>
-                </div>
-                
-                <div class="workflow-section">
-                    <h2 class="section-title"><span class="number">3</span>Building Detection</h2>
-                    <div class="instructions">
-                        Place markers on buildings or use AI detection to automatically identify building outlines.
-                        <div class="tool-hint">
-                            <i class="fas fa-map-marker-alt"></i> Use the marker tool <i class="fas fa-arrow-right"></i> on the left side of the map
+                <div class="workflow-sections">
+                    <div class="workflow-section">
+                        <h2 class="section-title"><span class="number">1</span>Area Selection</h2>
+                        <div class="instructions">
+                            Draw a rectangle on the map to select an area of interest for building detection.
                         </div>
+                        
                         <div class="detection-note">
                             <strong>How to use:</strong>
                             <ol>
-                                <li>Click the marker tool on the left side</li>
-                                <li>Place markers on different types of buildings (small, large, etc.)</li>
-                                <li>Click "Detect Buildings" to start AI detection</li>
+                                <li>
+                                    <span class="step-number">1.</span>
+                                    <span>Click the rectangle tool <i class="fas fa-square-full"></i></span>
+                                </li>
+                                <li>
+                                    <span class="step-number">2.</span>
+                                    <span>Click and drag on the map to draw your area of interest</span>
+                                </li>
+                                <li>
+                                    <span class="step-number">3.</span>
+                                    <span>Release to complete the selection</span>
+                                </li>
                             </ol>
-                            <em>Tip: Place markers on different building types to improve detection accuracy</em>
                         </div>
                     </div>
-                    <button id="detect-buildings-btn" class="button" disabled>Detect Buildings</button>
-                </div>
-                
-                <div class="workflow-section">
-                    <h2 class="section-title"><span class="number">4</span>Export</h2>
-                    <div class="instructions">
-                        Export the detected buildings in different formats for further use.
+                    
+                    <div class="workflow-section">
+                        <h2 class="section-title"><span class="number">2</span>Satellite Image</h2>
+                        <div class="instructions">
+                            Download the satellite imagery for the selected area to prepare for detection.
+                        </div>
+                        <button id="get-satellite-btn" class="button" disabled>Download Satellite Image</button>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="osm-tags">OSM Tags:</label>
-                        <textarea id="osm-tags" class="form-control">building=yes
+                    <div class="workflow-section">
+                        <h2 class="section-title"><span class="number">3</span>Building Detection</h2>
+                        <div class="instructions">
+                            Place markers on specific buildings you want to detect. The algorithm will only generate building outlines for buildings where you've placed markers.
+                        </div>
+                        
+                        <div class="detection-note">
+                            <strong>How to use:</strong>
+                            <ol>
+                                <li>
+                                    <span class="step-number">1.</span>
+                                    <span>Click the marker tool <i class="fas fa-map-marker-alt"></i></span>
+                                </li>
+                                <li>
+                                    <span class="step-number">2.</span>
+                                    <span>Place markers on each building you want the algorithm to detect</span>
+                                </li>
+                                <li>
+                                    <span class="step-number">3.</span>
+                                    <span>Click "Detect Buildings" to generate building outlines for the marked buildings</span>
+                                </li>
+                            </ol>
+                        </div>
+                        <button id="detect-buildings-btn" class="button" disabled>Detect Buildings</button>
+                    </div>
+                    
+                    <div class="workflow-section">
+                        <h2 class="section-title"><span class="number">4</span>Export</h2>
+                        <div class="instructions">
+                            Export the detected buildings in different formats for further use.
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="osm-tags">OSM Tags:</label>
+                            <div class="tag-explanation">
+                                These tags will be added to each building when exporting for OpenStreetMap. They help describe the building properties in OSM's data format.
+                            </div>
+                            <textarea id="osm-tags" class="form-control">building=yes
 source=GeoAI Detection</textarea>
-                    </div>
-                    
-                    <div class="btn-group">
-                        <button id="download-osm-btn" class="button" disabled>OSM Export</button>
-                        <button id="download-geojson-btn" class="button secondary" disabled>GeoJSON</button>
+                        </div>
+                        
+                        <div class="btn-group">
+                            <button id="download-osm-btn" class="button" disabled>OSM Export</button>
+                            <button id="download-geojson-btn" class="button secondary" disabled>GeoJSON</button>
+                        </div>
                     </div>
                 </div>
             </aside>
@@ -99,6 +159,32 @@ source=GeoAI Detection</textarea>
                     <div class="status-indicator">
                         <div class="status-dot"></div>
                         <span id="status-text">Ready</span>
+                    </div>
+                </div>
+                <!-- Add statistics panel -->
+                <div id="statistics-panel" class="statistics-panel hidden">
+                    <h3>Building Statistics</h3>
+                    <div class="stats-content">
+                        <div class="stat-item">
+                            <span class="stat-label">Total buildings:</span>
+                            <span id="stat-building-count">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Total area:</span>
+                            <span id="stat-total-area">0 m²</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Average area:</span>
+                            <span id="stat-avg-area">0 m²</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Smallest building:</span>
+                            <span id="stat-min-area">0 m²</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Largest building:</span>
+                            <span id="stat-max-area">0 m²</span>
+                        </div>
                     </div>
                 </div>
             </div>

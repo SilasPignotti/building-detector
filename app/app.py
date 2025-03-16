@@ -7,6 +7,7 @@ import uuid
 import json
 from datetime import datetime
 from utils.logger import logger
+from config import UPLOAD_FOLDER, MAX_CONTENT_LENGTH, COLAB_SERVER_URL
 
 app = Flask(__name__)
 
@@ -15,10 +16,10 @@ app.logger.handlers = []
 for handler in logging.getLogger('werkzeug').handlers:
     logging.getLogger('werkzeug').removeHandler(handler)
 
-# Set upload folder relative to project directory, not app directory
-app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
-app.config['COLAB_SERVER_URL'] = 'https://5a71-34-139-152-103.ngrok-free.app'  # Updated ngrok URL from Colab Server
+# Set configuration values from config.py
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+app.config['COLAB_SERVER_URL'] = COLAB_SERVER_URL
 
 # Ensure upload directory exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -44,7 +45,27 @@ def index():
         HTML: The rendered index.html template
     """
     logger.info('Loading index page')
+    # Clean up the uploads folder at the beginning of each session
+    cleanup_uploads()
     return render_template('index.html')
+
+def cleanup_uploads():
+    """
+    Clean up the uploads folder to prevent accumulation of satellite images.
+    Deletes all files in the upload folder except for .gitkeep.
+    """
+    try:
+        logger.info('Cleaning up uploads folder')
+        files = os.listdir(app.config['UPLOAD_FOLDER'])
+        for file in files:
+            if file != '.gitkeep':  # Preserve .gitkeep to maintain the folder in git
+                file_path = get_file_path(file)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+                    logger.info(f'Deleted file: {file}')
+        logger.info('Uploads folder cleanup complete')
+    except Exception as e:
+        logger.error(f"Error cleaning uploads folder: {str(e)}", exc_info=True)
 
 @app.route('/get_satellite', methods=['POST'])
 def get_satellite():
@@ -216,13 +237,43 @@ def send_to_colab_server(colab_url, image_path, image_filename, transformed_poin
 def download():
     """
     Download the building detection results as a GeoJSON file.
+    Format optimized for OSM import tools with essential properties.
     
     Returns:
         File: GeoJSON file with building detection results
     """
     try:
+        # Read the GeoJSON file
+        with open(get_file_path('building_regularized.geojson'), 'r') as f:
+            geojson_data = json.load(f)
+        
+        # Create a clean GeoJSON with properties suitable for OSM import
+        clean_geojson = {
+            "type": "FeatureCollection",
+            "features": []
+        }
+        
+        # Keep only essential properties for each feature
+        for feature in geojson_data['features']:
+            clean_feature = {
+                "type": "Feature",
+                "properties": {
+                    "building": "yes",
+                    "source": "GeoAI Detection",
+                    "source:date": datetime.now().strftime("%Y-%m-%d"),
+                    "area": round(feature['properties'].get('area', 0), 1)
+                },
+                "geometry": feature['geometry']
+            }
+            clean_geojson['features'].append(clean_feature)
+        
+        # Save the cleaned GeoJSON
+        clean_file_path = get_file_path('building_detection_clean.geojson')
+        with open(clean_file_path, 'w') as f:
+            json.dump(clean_geojson, f, ensure_ascii=False)
+        
         return send_file(
-            get_file_path('building_regularized.geojson'),
+            clean_file_path,
             as_attachment=True,
             download_name='building_detection_result.geojson'
         )
@@ -234,8 +285,7 @@ def download():
 def download_osm():
     """
     Download the building detection results in OSM-compatible format.
-    
-    Accepts optional tag parameters to customize the OSM tags.
+    Format optimized for direct import into OSM editing tools.
     
     Returns:
         File: GeoJSON file formatted for OSM import
@@ -252,31 +302,43 @@ def download_osm():
                 custom_tags = json.loads(request.args.get('tags'))
             except json.JSONDecodeError:
                 logger.warning("Invalid JSON in tags parameter")
-                # Continue with default tags
-
-        # Make sure there's at least a building tag
+        
+        # Ensure required tags are present
         if 'building' not in custom_tags:
             custom_tags['building'] = 'yes'
-            
-        # Add generation date if not provided
+        if 'source' not in custom_tags:
+            custom_tags['source'] = 'GeoAI Detection'
         if 'source:date' not in custom_tags:
             custom_tags['source:date'] = datetime.now().strftime("%Y-%m-%d")
         
         # Convert to OSM-compatible GeoJSON
         osm_geojson = {
             "type": "FeatureCollection",
+            "generator": "Building Detector",
             "features": []
         }
 
         for feature in geojson_data['features']:
-            # Use the custom tags for each building
-            feature['properties'] = custom_tags.copy()
-            osm_geojson['features'].append(feature)
+            # Create a copy of custom tags for each feature
+            feature_tags = custom_tags.copy()
+            
+            # Add area as a note tag if significant
+            area = feature['properties'].get('area', 0)
+            if area > 0:
+                feature_tags['note'] = f"Detected building area: {round(area, 1)} m²"
+            
+            # Create the feature with optimized properties
+            osm_feature = {
+                "type": "Feature",
+                "properties": feature_tags,
+                "geometry": feature['geometry']
+            }
+            osm_geojson['features'].append(osm_feature)
 
-        # Save as new file
+        # Save as new file with UTF-8 encoding
         osm_file_path = get_file_path('buildings_for_osm.geojson')
-        with open(osm_file_path, 'w') as f:
-            json.dump(osm_geojson, f)
+        with open(osm_file_path, 'w', encoding='utf-8') as f:
+            json.dump(osm_geojson, f, ensure_ascii=False)
 
         return send_file(
             osm_file_path,
@@ -301,5 +363,5 @@ def uploaded_file(filename):
     return send_file(get_file_path(filename))
 
 if __name__ == '__main__':
-    logger.info('Starting OSM Building Detector application')
+    logger.info('Starting Building Detector application')
     app.run(debug=False)
