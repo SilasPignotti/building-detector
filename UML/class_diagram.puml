@@ -1,0 +1,65 @@
+@startuml BuildingDetector-ClassDiagram
+
+title Building Detector - Class Diagram
+
+' Main application class
+class Flask {
+  +__init__()
+  +route()
+  +run()
+}
+
+class BuildingDetectorApp {
+  -UPLOAD_FOLDER: string
+  -MAX_CONTENT_LENGTH: int
+  -COLAB_SERVER_URL: string
+  +index(): HTML
+  +get_satellite(): JSON
+  +process(): JSON
+  +download(): File
+  +download_osm(): File
+  +uploaded_file(): File
+  -cleanup_uploads(): void
+  -get_file_path(): string
+  -send_to_colab_server(): JSON
+}
+
+' Helper classes
+class Logger {
+  +setup_logger(): Logger
+  +info()
+  +error()
+  +warning()
+  +debug()
+}
+
+class MapService {
+  +map_tiles_to_geotiff()
+}
+
+class ColabService {
+  +detect_buildings()
+  +regularize_geometry()
+}
+
+' Domain objects
+class SatelliteImage {
+  -image_id: string
+  -file_path: string
+  -bbox: float[]
+}
+
+class BuildingGeometry {
+  -geometry: Object
+  -properties: Object
+}
+
+' Relationships
+Flask <|-- BuildingDetectorApp : extends
+BuildingDetectorApp --> Logger : uses
+BuildingDetectorApp --> MapService : uses
+BuildingDetectorApp --> ColabService : uses
+BuildingDetectorApp --> SatelliteImage : manages
+BuildingDetectorApp --> BuildingGeometry : processes
+
+@enduml 

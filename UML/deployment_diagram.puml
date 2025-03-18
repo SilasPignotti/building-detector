@@ -1,0 +1,63 @@
+@startuml BuildingDetector-DeploymentDiagram
+
+title Building Detector - Deployment Diagram
+
+node "User Device" as UserDevice {
+  component "Web Browser" as Browser {
+    artifact "HTML/CSS/JS Frontend" as Frontend
+  }
+}
+
+node "Web Server" as WebServer {
+  component "Flask Application" as FlaskApp {
+    component "Web Routes" as Routes
+    component "Satellite Image Service" as ImageService
+    component "Export Service" as ExportService
+    component "Logging Service" as LoggingService
+  }
+  
+  database "File System" as FileSystem {
+    folder "Uploads Directory" as UploadDir
+    file "Log Files" as LogFiles
+  }
+}
+
+cloud "Google Colab" as Colab {
+  component "Jupyter Notebook" as Notebook {
+    component "Flask API" as ColabAPI
+    component "SAM2 Model" as SAM2
+    component "Building Regularization" as Regularization
+  }
+  
+  component "ngrok Tunnel" as Ngrok
+}
+
+rectangle "External Services" {
+  [Leafmap API] as LeafmapAPI
+  [Satellite Imagery Provider] as SatelliteImages
+}
+
+' Connections
+UserDevice --> WebServer : HTTPS
+WebServer <--> Colab : HTTPS via ngrok
+WebServer --> LeafmapAPI : HTTP API calls
+LeafmapAPI --> SatelliteImages : requests images
+
+' Internal connections
+Routes ..> ImageService : uses
+Routes ..> ExportService : uses
+Routes ..> LoggingService : uses
+
+ImageService ..> UploadDir : stores images
+LoggingService ..> LogFiles : writes logs
+ExportService ..> UploadDir : reads/writes GeoJSON
+
+ImageService --> LeafmapAPI : requests imagery
+Routes --> ColabAPI : sends image & points
+
+ColabAPI --> SAM2 : processes input
+SAM2 --> Regularization : passes segmentation
+Regularization --> ColabAPI : returns building geometries
+ColabAPI --> Routes : returns GeoJSON data
+
+@enduml

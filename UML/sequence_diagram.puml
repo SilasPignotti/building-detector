@@ -1,0 +1,64 @@
+@startuml BuildingDetector-SequenceDiagram
+
+title Building Detector - Sequence Diagram
+
+actor User
+participant "Web Browser" as Browser
+participant "Flask Web App" as WebApp
+participant "File Storage" as FileStorage
+participant "Leafmap Service" as LeafmapService
+participant "Colab ML Server" as MLServer
+
+== Initialization ==
+User -> Browser: Open application
+Browser -> WebApp: Request index page
+WebApp -> WebApp: cleanup_uploads()
+WebApp -> Browser: Return index.html
+
+== Satellite Image Acquisition ==
+User -> Browser: Select area of interest
+User -> Browser: Click "Download Satellite Image"
+Browser -> WebApp: GET /get_satellite with coordinates
+WebApp -> WebApp: Generate unique image ID
+WebApp -> LeafmapService: Request satellite image\nwith map_tiles_to_geotiff()
+LeafmapService -> WebApp: Return satellite image
+WebApp -> FileStorage: Save satellite image
+WebApp -> Browser: Return image URL and ID
+Browser -> User: Display satellite image
+
+== Building Detection ==
+User -> Browser: Place reference points on buildings
+User -> Browser: Click "Detect Buildings"
+Browser -> WebApp: POST /process with point coordinates
+WebApp -> WebApp: Transform [lat, lon] to [lon, lat]
+WebApp -> FileStorage: Retrieve latest satellite image
+WebApp -> MLServer: Send image and points for processing
+note right
+  POST /detect with:
+  - Satellite image (multipart)
+  - Points coordinates (JSON)
+end note
+MLServer -> MLServer: Apply SAM2 model
+MLServer -> MLServer: Perform region grouping
+MLServer -> MLServer: Regularize building geometries
+MLServer -> WebApp: Return GeoJSON with detected buildings
+WebApp -> FileStorage: Save GeoJSON result
+WebApp -> Browser: Return result URL
+Browser -> User: Display detected buildings on map
+
+== Result Export ==
+User -> Browser: Click "Download Standard GeoJSON"
+Browser -> WebApp: GET /download
+WebApp -> FileStorage: Retrieve building_regularized.geojson
+WebApp -> WebApp: Format for standard download
+WebApp -> Browser: Return GeoJSON file
+Browser -> User: Save GeoJSON file
+
+User -> Browser: Click "Download OSM-Compatible GeoJSON"
+Browser -> WebApp: GET /download_osm
+WebApp -> FileStorage: Retrieve building_regularized.geojson
+WebApp -> WebApp: Format for OSM compatibility
+WebApp -> Browser: Return OSM-formatted GeoJSON file
+Browser -> User: Save OSM GeoJSON file
+
+@enduml 

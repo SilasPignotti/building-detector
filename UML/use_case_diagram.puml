@@ -1,0 +1,55 @@
+@startuml BuildingDetector-UseCaseDiagram
+
+title Building Detector - Use Case Diagram
+
+left to right direction
+
+actor "User" as user
+actor "Map Service Provider" as mapProvider
+actor "Colab ML Server" as mlServer
+
+rectangle "Building Detector Application" {
+  ' Hauptanwendungsfälle
+  usecase "Explore Map\nArea" as UC1
+  usecase "Download\nSatellite Imagery" as UC2
+  usecase "Mark Buildings\nwith Points" as UC3
+  usecase "Detect Building\nOutlines" as UC4
+  usecase "Export\nDetection Results" as UC5
+  
+  ' Untergeordnete Anwendungsfälle
+  usecase "View Results\non Map" as UC6
+  usecase "Export as\nStandard GeoJSON" as UC7
+  usecase "Export as\nOSM-Compatible Format" as UC8
+  
+  ' Interne Prozesse
+  usecase "Process Imagery\nwith SAM2" as UC9
+  usecase "Regularize\nGeometries" as UC10
+}
+
+' Benutzerinteraktionen (vereinfacht)
+user --> UC1
+user --> UC2
+user --> UC3
+user --> UC4
+user --> UC5
+
+' Externe Dienste
+mapProvider --> UC2 : provides imagery
+mlServer --> UC9 : executes
+
+' Logischer Ablauf mit weniger Beziehungen
+UC1 <.. UC2 : <<precedes>>
+UC2 <.. UC3 : <<precedes>>
+UC3 <.. UC4 : <<precedes>>
+UC4 <.. UC5 : <<precedes>>
+
+' Nur die wichtigsten Include-Beziehungen
+UC4 ..> UC9 : <<include>>
+UC9 ..> UC10 : <<include>>
+UC4 ..> UC6 : <<include>>
+
+' Export-Optionen
+UC5 <|-- UC7 : <<extends>>
+UC5 <|-- UC8 : <<extends>>
+
+@enduml

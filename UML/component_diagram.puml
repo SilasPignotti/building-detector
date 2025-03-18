@@ -1,0 +1,49 @@
+@startuml BuildingDetector-ComponentDiagram
+
+title Building Detector - Component Diagram
+
+package "Building Detector System" {
+  [Flask Web Application] as WebApp
+  [Web Frontend (HTML/JS/CSS)] as Frontend
+  [Satellite Image Service] as SatelliteService
+  [ML Processing Service] as MLService
+  [Logging Service] as LoggingService
+  [GeoJSON Export Service] as ExportService
+  
+  database "File Storage" as FileStorage
+
+  ' Internal interfaces
+  interface "HTTP API" as FlaskAPI
+  interface "File IO" as FileIO
+  interface "Logging API" as LogAPI
+}
+
+' External systems
+cloud "Leafmap Service" as LeafmapAPI
+cloud "SAM2 Model\n(Colab Server)" as CoLabServer
+
+' Interfaces to external systems
+interface "Leafmap API" as LeafmapInterface
+interface "ngrok HTTP API" as ColabInterface
+
+' Connections between components
+WebApp -- FlaskAPI
+Frontend ..> FlaskAPI : HTTP requests
+WebApp ..> LogAPI : logs events
+WebApp ..> FileIO : reads/writes
+
+SatelliteService ..> LeafmapInterface : downloads images
+LeafmapAPI -- LeafmapInterface
+
+MLService ..> ColabInterface : processes images
+CoLabServer -- ColabInterface
+
+WebApp ..> SatelliteService : uses
+WebApp ..> MLService : uses
+WebApp ..> ExportService : uses
+WebApp ..> LoggingService : uses
+
+FileStorage -- FileIO
+LoggingService -- LogAPI
+
+@enduml 
