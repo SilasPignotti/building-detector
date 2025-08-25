@@ -1,157 +1,173 @@
-# Building Detector
+# Building Detector 🏢
 
-Eine Webanwendung zur Erkennung und Extraktion von Gebäudeumrissen aus Satellitenbildern.
+*An AI-powered web application for detecting and extracting building footprints from satellite imagery*
 
-## Übersicht
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-3.0+-green.svg)](https://flask.palletsprojects.com/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Building Detector ist ein Tool, das Nutzern hilft, Gebäudegeometrien aus Satellitenbildern mittels Deep Learning schnell zu identifizieren und zu extrahieren. Die Anwendung bietet eine einfache Weboberfläche, auf der Nutzer:
+## Overview
 
-1. Ein Interessengebiet auf einer Karte auswählen können
-2. Satellitenbilder für das ausgewählte Gebiet herunterladen können
-3. Referenzpunkte auf spezifischen Gebäuden platzieren können, um den Erkennungsalgorithmus gezielt zu steuern
-4. Das Bild verarbeiten können, um die markierten Gebäude zu identifizieren
-5. Die erkannten Gebäude im GeoJSON-Format oder im OpenStreetMap-kompatiblen Format herunterladen können
+Building Detector is a sophisticated tool that leverages deep learning to identify and extract building geometries from satellite imagery. The application provides an intuitive web interface where users can:
 
-Das System nutzt eine zweiteilige Architektur:
-- Eine Flask-Webanwendung (dieses Repository) stellt die Benutzeroberfläche bereit
-- Ein Machine-Learning-Modell, das auf einem Colab-Server läuft (verbunden über ngrok), führt die eigentliche Gebäudeerkennung durch
+✅ **Select areas of interest** on an interactive map  
+✅ **Download high-resolution** satellite imagery  
+✅ **Place reference points** on specific buildings to guide the detection algorithm  
+✅ **Process images** to identify marked buildings  
+✅ **Export results** in GeoJSON format or OpenStreetMap-compatible format  
 
-## Funktionen
+## Architecture
 
-- Interaktive kartenbasierte Oberfläche zur Gebietsauswahl
-- Ein-Klick-Download von Satellitenbildern
-- Punktbasierte Steuerung des Erkennungsalgorithmus
-  - Der Nutzer bestimmt durch Punktsetzung präzise, welche spezifischen Gebäude erkannt werden sollen
-  - Nur die markierten Gebäude werden vom Algorithmus verarbeitet und zurückgegeben
-- Gebäuderegularisierung zur Erzeugung sauberer Geometrien
-- Exportoptionen:
-  - Standard-GeoJSON mit Gebäudemetadaten
-  - OpenStreetMap-kompatibles GeoJSON für einfache OSM-Beiträge
+The system uses a **two-tier architecture**:
 
-## Projektstruktur
+- **Frontend (Flask Web App)**: Provides the user interface and handles satellite imagery downloads
+- **Backend (Colab ML Server)**: Runs the machine learning model using Segment Anything Model 2 (SAM2)
+
+## Key Features
+
+- 🗺️ **Interactive map-based interface** for area selection
+- 📡 **One-click satellite image download** for any region
+- 🎯 **Point-based detection control** - users specify exactly which buildings to detect
+- 🔧 **Building regularization** for clean, precise geometries  
+- 📊 **Dual export options**:
+  - Standard GeoJSON with building metadata
+  - OpenStreetMap-compatible GeoJSON for easy OSM contributions
+
+## Project Structure
 
 ```
 building-detector/
+├── main.py                    # Main entry point
+├── requirements.txt           # Python dependencies
+├── .gitignore                # Git ignore rules
+├── LICENSE                   # MIT License
 │
-├── app/ - Hauptanwendungsverzeichnis
-│   ├── app.py - Hauptanwendungsdatei (Flask-Server)
-│   ├── config.py - Konfigurationseinstellungen
-│   ├── static/ - Statische Ressourcen
-│   │   ├── Logo.png - Anwendungslogo
-│   │   ├── script.js - Frontend-JavaScript
-│   │   └── style.css - CSS-Styling
-│   ├── templates/ - HTML-Vorlagen
-│   │   └── index.html - Hauptseite
-│   ├── utils/ - Hilfsfunktionen
-│   │   └── logger.py - Logging-Funktionalität
-│   └── logs/ - Verzeichnis für Protokolldateien
+├── app/                      # Main application directory
+│   ├── app.py               # Flask server & routing logic
+│   ├── config.py            # Configuration settings
+│   ├── config.py.template   # Configuration template
+│   ├── static/              # Static assets (CSS, JS, images)
+│   ├── templates/           # HTML templates
+│   └── utils/               # Utility functions
 │
-├── uploads/ - Temporärer Speicher für hochgeladene und verarbeitete Dateien
-└── requirements.txt - Python-Abhängigkeiten
+├── local_backend/           # 🆕 Local ML backend (SAM2)
+│   ├── local_server.py     # Local SAM2 server
+│   ├── requirements.txt    # ML dependencies
+│   └── README.md           # Setup instructions
+│
+├── uploads/                 # Temporary storage (auto-created)
+├── UML/                    # System documentation
+├── building-detector.ipynb # Colab notebook
+└── .env.example           # Environment template
 ```
 
-## Architektur
+## Technology Stack
 
-Diese Anwendung folgt einer vereinfachten MVC-Architektur:
+- **Backend**: Flask, Python 3.8+
+- **Frontend**: HTML5, CSS3, JavaScript, Leaflet.js
+- **AI/ML**: Segment Anything Model 2 (SAM2)
+- **Geospatial**: leafmap, GeoJSON
+- **Deployment**: ngrok (for Colab connectivity)
 
-- **Model**: Die Datenverarbeitung und -verwaltung erfolgt in app.py
-- **View**: Die Darstellung wird durch templates/index.html und static/-Dateien gesteuert
-- **Controller**: Die Routenlogik in app.py verbindet Benutzeraktionen mit der Datenverarbeitung
+## Prerequisites
 
-Die Anwendung interagiert mit einem externen Colab-Server, der das Machine-Learning-Modell für die Gebäudeerkennung hostet.
+- **Python 3.8** or higher
+- Modern **web browser** with JavaScript enabled
+- **Internet connection** for satellite imagery and ML processing
+- **Google Colab account** (for ML backend)
 
-## Technische Realisierung
+## Quick Start
 
-### Frontend (Flask Web App)
-- Interaktive Karte mit Leaflet
-- Benutzerinterface für Punktsetzung und Steuerung des Erkennungsprozesses
-- HTTP-Kommunikation mit dem ML-Backend
+### 1. Clone the Repository
+```bash
+git clone https://github.com/yourusername/building-detector.git
+cd building-detector
+```
 
-### Backend (Colab ML Server)
-- Flask-API mit flask-cors für Cross-Origin-Anfragen
-- Segment Anything Model 2 (SAM2) für präzise Bildsegmentierung
-- Verarbeitungsablauf:
-  1. Empfang von Satellitenbild und Punktkoordinaten
-  2. Anwendung des SAM2-Modells zur Erkennung der durch Punkte markierten Gebäude
-  3. Regionengruppierung zur Bildung zusammenhängender Gebäudestrukturen
-  4. Geometrieregularisierung für präzisere Gebäudeumrisse
-  5. Rückgabe der erkannten Gebäude als GeoJSON
+### 2. Set Up Virtual Environment
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
 
-## Voraussetzungen
+### 3. Install Dependencies
+```bash
+pip install -r requirements.txt
+```
 
-- Python 3.8+
-- Flask
-- leafmap (für Satellitenbilder)
-- Moderner Webbrowser mit aktiviertem JavaScript
-- Internetverbindung
+### 4. Run the Application
+```bash
+python main.py
+```
 
-## Installation
+### 5. Access the Web Interface
+Open your browser and navigate to: **http://127.0.0.1:5000/**
 
-1. Klonen Sie dieses Repository:
-   ```bash
-   git clone https://github.com/yourusername/building-detector.git
-   cd building-detector
+## Configuration
+
+### Option 1: Google Colab Backend (Recommended)
+
+1. **Access the Colab notebook**: [Building Detector ML Server](https://colab.research.google.com/drive/1aKfw2RQrQkvgA0oXCKz_iMguSdGdbFaC?usp=sharing)
+2. **Make a copy** to your Google Drive
+3. **Get ngrok token**: Register at [ngrok.com](https://ngrok.com) and copy your auth token
+4. **Run the notebook**: Enter your ngrok token when prompted
+5. **Update configuration**: Copy the ngrok URL to `app/config.py`:
+   ```python
+   COLAB_SERVER_URL = 'https://your-ngrok-url.ngrok.io'
    ```
 
-2. Erstellen Sie eine virtuelle Umgebung (empfohlen):
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # Unter Windows: venv\Scripts\activate
-   ```
+### Option 2: Local Backend (Full SAM2 Implementation)
 
-3. Installieren Sie die erforderlichen Pakete:
+**NEW!** Run the complete AI pipeline locally using the same SAM2 model as Colab:
+
+1. **Install local backend**:
    ```bash
+   cd local_backend
    pip install -r requirements.txt
    ```
 
-4. Konfigurieren Sie die Anwendung:
-   - Aktualisieren Sie die `COLAB_SERVER_URL` in `app/config.py` falls erforderlich
-   - Stellen Sie sicher, dass das Verzeichnis `uploads` existiert und beschreibbar ist
-
-## Ausführen der Anwendung
-
-1. Starten Sie den Flask-Server:
+2. **Start local ML server**:
    ```bash
-   python app/app.py
+   python local_server.py  # Runs on port 5001
    ```
 
-2. Öffnen Sie einen Webbrowser und navigieren Sie zu:
+3. **Configure main app**:
+   ```bash
+   export COLAB_SERVER_URL='http://127.0.0.1:5001'
+   python main.py
    ```
-   http://127.0.0.1:5000/
-   ```
 
-## Verwendung
+**Benefits**: No cloud dependencies, data privacy, no session timeouts
+**Requirements**: 8GB+ RAM, Python 3.8+, optional GPU for speed
 
-1. **Gebiet auswählen**: Nutzen Sie die Kartenoberfläche, um zu Ihrem Interessengebiet zu navigieren
-2. **Satellitenbild herunterladen**: Klicken Sie auf "Satellitenbild herunterladen" für den sichtbaren Bereich
-3. **Punkte setzen**: Platzieren Sie Punkte auf den zu erkennenden Gebäuden
-   - Jeder Punkt markiert ein spezifisches Gebäude zur Erkennung
-   - Nur die markierten Gebäude werden vom Algorithmus verarbeitet
-4. **Verarbeiten**: Klicken Sie auf "Gebäude erkennen", um den Erkennungsprozess zu starten
-5. **Ergebnisse herunterladen**: Laden Sie die erkannten Gebäude im Standard-GeoJSON-Format oder im OpenStreetMap-kompatiblen Format herunter
+See [local_backend/README.md](local_backend/README.md) for detailed setup instructions.
 
-## Colab-Server-Einrichtung
+## Usage Guide
 
-Diese Anwendung benötigt einen Colab-Server, auf dem das Gebäudeerkennungsmodell läuft.
+1. **📍 Select Area**: Navigate to your area of interest on the interactive map
+2. **📡 Download Imagery**: Click "Download Satellite Image" for the visible region
+3. **🎯 Place Points**: Click on buildings you want to detect (each click marks a building)
+4. **⚙️ Process**: Click "Detect Buildings" to start the AI processing
+5. **💾 Export Results**: Download detected buildings as GeoJSON files
 
-Wenn Sie diese Anwendung lokal verwenden möchten, führen Sie folgende Schritte aus:
+## Security & Configuration
 
-1. Zugriff auf das Colab-Notebook unter: [Building Detector Colab Server](https://colab.research.google.com/drive/1aKfw2RQrQkvgA0oXCKz_iMguSdGdbFaC?usp=sharing)
+- API keys and credentials are externalized to environment variables
+- Sensitive data is excluded from version control via `.gitignore`
+- Upload directory is automatically cleaned between sessions
 
-2. Erstellen Sie eine Kopie des Notebooks in Ihrem eigenen Google Drive
+## Contributing
 
-3. Besorgen Sie sich ein ngrok-Authentifizierungstoken:
-   - Registrieren Sie sich auf [ngrok.com](https://ngrok.com)
-   - Finden Sie Ihr Auth-Token in Ihrem ngrok-Dashboard
+Contributions are welcome! Please feel free to submit issues and enhancement requests.
 
-4. Führen Sie das Colab-Notebook aus:
-   - Geben Sie Ihr ngrok-Token ein, wenn Sie dazu aufgefordert werden
-   - Das Notebook stellt Ihnen eine öffentliche URL zur Verfügung
+## License
 
-5. Kopieren Sie die vom Notebook bereitgestellte ngrok-URL und fügen Sie sie in die Variable `COLAB_SERVER_URL` in Ihrer Datei `app/config.py` ein
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-Denken Sie daran, dass sich die ngrok-URL bei jedem Neustart des Colab-Notebooks ändert, sodass Sie die Konfiguration entsprechend aktualisieren müssen.
+## Author
 
-## Autor
+**Silas Pignotti**
 
-Silas Pignotti
+---
+
+*Built with ❤️ for the geospatial and OpenStreetMap communities*
