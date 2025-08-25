@@ -1,0 +1,16 @@
+# Local Backend Dependencies - Core Flask
+flask==3.0.2
+flask-cors==4.0.0
+
+# ML Dependencies - SAM2 and Geospatial Processing
+segment-geospatial>=0.10.0
+rasterio>=1.3.0
+numpy>=1.24.0
+
+# Additional dependencies that may be required by segment-geospatial
+torch>=2.0.0
+torchvision>=0.15.0
+opencv-python>=4.8.0
+scikit-image>=0.21.0
+geopandas>=0.13.0
+shapely>=2.0.0

@@ -1,0 +1,18 @@
+"""
+Configuration template for the Building Detector application.
+Copy this file to config.py and update the values as needed.
+"""
+import os
+
+# Base directory of the application
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Upload configuration
+UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
+MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
+
+# External services - Update with your ngrok URL from Colab
+COLAB_SERVER_URL = 'https://your-ngrok-url.ngrok-free.app'
+
+# Optional: Environment variable override
+COLAB_SERVER_URL = os.environ.get('COLAB_SERVER_URL', COLAB_SERVER_URL)
