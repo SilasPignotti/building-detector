@@ -9,6 +9,7 @@ numpy==1.26.4
 
 # Geospatial
 leafmap==0.42.13
+GDAL>=3.4.0
 
 # Configuration
 python-dotenv==1.0.1
