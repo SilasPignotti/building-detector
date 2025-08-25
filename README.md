@@ -1,4 +1,4 @@
-# Building Detector 🏢
+# Building Detector
 
 *An AI-powered web application for detecting and extracting building footprints from satellite imagery*
 
@@ -169,5 +169,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Silas Pignotti**
 
 ---
-
-*Built with ❤️ for the geospatial and OpenStreetMap communities*
