@@ -6,8 +6,8 @@ import requests
 import uuid
 import json
 from datetime import datetime
-from utils.logger import logger
-from config import UPLOAD_FOLDER, MAX_CONTENT_LENGTH, COLAB_SERVER_URL
+from app.utils.logger import logger
+from app.config import UPLOAD_FOLDER, MAX_CONTENT_LENGTH, COLAB_SERVER_URL
 
 app = Flask(__name__)
 
