@@ -4,7 +4,7 @@ from logging.handlers import RotatingFileHandler
 
 
 def setup_logger():
-    """Configure application logger for file output."""
+    """Create the application logger and attach rotating file handlers."""
     log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
     os.makedirs(log_dir, exist_ok=True)
 

@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
-"""
-Local Backend Server for Building Detection
-
-This is a local implementation of the building detection backend using the same
-ML models and logic as the Colab notebook. It runs the SAM2 model locally
-for actual building detection from satellite imagery.
-
-Based on the original Colab notebook implementation.
-"""
+"""Run the local SAM2 backend for building detection."""
 
 import json
 import os
@@ -48,11 +40,7 @@ def health_check():
 
 @app.route("/detect", methods=["POST"])
 def detect():
-    """
-    Building detection endpoint using SAM2.
-
-    This is the exact same logic as in the Colab notebook, adapted for local execution.
-    """
+    """Run the point-guided SAM2 detection pipeline on an uploaded image."""
     if not SAM_AVAILABLE:
         return jsonify(
             {
@@ -133,9 +121,7 @@ def detect():
     except Exception as e:
         print(f"Error in detect: {str(e)}")
         print(traceback.format_exc())
-        return jsonify(
-            {"error": str(e)}
-        ), 500  # Return an error message with a 500 status code
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/status", methods=["GET"])

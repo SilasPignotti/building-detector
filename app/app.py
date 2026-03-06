@@ -25,7 +25,7 @@ os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
 
 def get_file_path(filename):
-    """Generate file path in the upload directory."""
+    """Return the absolute path for a file in the upload directory."""
     return os.path.join(app.config["UPLOAD_FOLDER"], filename)
 
 
@@ -38,7 +38,7 @@ def index():
 
 
 def cleanup_uploads():
-    """Clean up uploads folder, preserving .gitkeep."""
+    """Remove generated upload files while keeping the tracked placeholder."""
     try:
         logger.info("Cleaning up uploads folder")
         files = os.listdir(app.config["UPLOAD_FOLDER"])
@@ -55,19 +55,17 @@ def cleanup_uploads():
 
 @app.route("/get_satellite", methods=["POST"])
 def get_satellite():
-    """Download satellite imagery for specified bounding box."""
+    """Download satellite imagery for the requested map bounds."""
     try:
         data = request.json
         bbox = [data["west"], data["south"], data["east"], data["north"]]
         logger.info(f"Received bbox: {bbox}")
 
-        # Generate unique filename
         image_id = str(uuid.uuid4())
         tif_path = get_file_path(f"satellite_{image_id}.tif")
         logger.info(f"Will save to: {tif_path}")
 
         try:
-            # Download satellite image
             logger.info("Starting download with leafmap...")
             leafmap.map_tiles_to_geotiff(
                 output=tif_path, bbox=bbox, zoom=18, source="Satellite", overwrite=True
@@ -77,7 +75,6 @@ def get_satellite():
             logger.error(f"Error during download: {str(download_error)}", exc_info=True)
             raise download_error
 
-        # Check if file exists and its size
         if os.path.exists(tif_path):
             file_size = os.path.getsize(tif_path)
             logger.info(f"TIF file exists, size: {file_size} bytes")
@@ -98,7 +95,7 @@ def get_satellite():
 
 @app.route("/process", methods=["POST"])
 def process():
-    """Process satellite image with points to detect buildings."""
+    """Send the latest satellite image and guide points to the ML backend."""
     try:
         data = request.json
         points = data["points"]
@@ -140,25 +137,16 @@ def process():
 
 
 def send_to_colab_server(colab_url, image_path, image_filename, transformed_points):
-    """Send image and points to Colab server for ML processing."""
+    """Post the selected image and guide points to the detection backend."""
     try:
-        # Prepare multipart form data
         with open(image_path, "rb") as f:
             image_data = f.read()
             logger.info(f"Image size: {len(image_data)} bytes")
 
-        # Create multipart form data
         files = {"image": (image_filename, image_data, "image/tiff")}
-
-        # Send transformed points as form data
         data = {"points": json.dumps(transformed_points)}
 
-        response = requests.post(
-            colab_url,
-            files=files,
-            data=data,
-            timeout=300,  # Set timeout to 5 minutes for large images
-        )
+        response = requests.post(colab_url, files=files, data=data, timeout=300)
 
         logger.info(f"Colab server response status: {response.status_code}")
         logger.debug(f"Response headers: {response.headers}")
@@ -179,7 +167,6 @@ def send_to_colab_server(colab_url, image_path, image_filename, transformed_poin
                 pass
             return jsonify({"error": error_msg}), 500
 
-        # Save results
         result_path = get_file_path("building_regularized.geojson")
         with open(result_path, "wb") as f:
             f.write(response.content)
@@ -196,7 +183,7 @@ def send_to_colab_server(colab_url, image_path, image_filename, transformed_poin
 
 @app.route("/download")
 def download():
-    """Download building detection results as clean GeoJSON."""
+    """Export detection results as normalized GeoJSON."""
     try:
         with open(get_file_path("building_regularized.geojson")) as f:
             geojson_data = json.load(f)
@@ -216,7 +203,6 @@ def download():
             }
             clean_geojson["features"].append(clean_feature)
 
-        # Save the cleaned GeoJSON
         clean_file_path = get_file_path("building_detection_clean.geojson")
         with open(clean_file_path, "w") as f:
             json.dump(clean_geojson, f, ensure_ascii=False)
@@ -235,11 +221,9 @@ def download():
 def download_osm():
     """Download results in OSM-compatible format."""
     try:
-        # Read the GeoJSON file
         with open(get_file_path("building_regularized.geojson")) as f:
             geojson_data = json.load(f)
 
-        # Get tags from request parameters
         custom_tags = {}
         if request.args.get("tags"):
             try:
@@ -247,7 +231,6 @@ def download_osm():
             except json.JSONDecodeError:
                 logger.warning("Invalid JSON in tags parameter")
 
-        # Ensure required tags are present
         if "building" not in custom_tags:
             custom_tags["building"] = "yes"
         if "source" not in custom_tags:
@@ -255,7 +238,6 @@ def download_osm():
         if "source:date" not in custom_tags:
             custom_tags["source:date"] = datetime.now().strftime("%Y-%m-%d")
 
-        # Convert to OSM-compatible GeoJSON
         osm_geojson = {
             "type": "FeatureCollection",
             "generator": "Building Detector",
@@ -263,15 +245,11 @@ def download_osm():
         }
 
         for feature in geojson_data["features"]:
-            # Create a copy of custom tags for each feature
             feature_tags = custom_tags.copy()
-
-            # Add area as a note tag if significant
             area = feature["properties"].get("area", 0)
             if area > 0:
                 feature_tags["note"] = f"Detected building area: {round(area, 1)} m²"
 
-            # Create the feature with optimized properties
             osm_feature = {
                 "type": "Feature",
                 "properties": feature_tags,
@@ -279,7 +257,6 @@ def download_osm():
             }
             osm_geojson["features"].append(osm_feature)
 
-        # Save as new file with UTF-8 encoding
         osm_file_path = get_file_path("buildings_for_osm.geojson")
         with open(osm_file_path, "w", encoding="utf-8") as f:
             json.dump(osm_geojson, f, ensure_ascii=False)

@@ -1,7 +1,4 @@
-"""
-Configuration template for the Building Detector application.
-Copy this file to config.py and update the values as needed.
-"""
+"""Template configuration for the Building Detector application."""
 import os
 
 # Base directory of the application
