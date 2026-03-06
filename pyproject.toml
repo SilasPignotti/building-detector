@@ -1,0 +1,36 @@
+[project]
+name = "building-detector"
+version = "0.1.0"
+description = "AI-powered building detection from satellite imagery using SAM2"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+authors = [{ name = "Silas Pignotti" }]
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "nox>=2025.2.9",
+    "pyright>=1.1.397",
+    "ruff>=0.11.0",
+]
+
+[tool.uv]
+default-groups = ["dev"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py38"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.pyright]
+typeCheckingMode = "basic"
+pythonVersion = "3.8"
+include = ["main.py", "app", "local_backend"]
+venvPath = "."
+venv = ".venv"
