@@ -24,20 +24,20 @@ app.config["COLAB_SERVER_URL"] = COLAB_SERVER_URL
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
 
-def get_file_path(filename):
+def get_file_path(filename: str) -> str:
     """Return the absolute path for a file in the upload directory."""
     return os.path.join(app.config["UPLOAD_FOLDER"], filename)
 
 
 @app.route("/")
-def index():
+def index() -> str:
     """Render the main application page."""
     logger.info("Loading index page")
     cleanup_uploads()
     return render_template("index.html")
 
 
-def cleanup_uploads():
+def cleanup_uploads() -> None:
     """Remove generated upload files while keeping the tracked placeholder."""
     try:
         logger.info("Cleaning up uploads folder")
