@@ -32,5 +32,7 @@ known-first-party = ["app"]
 typeCheckingMode = "basic"
 pythonVersion = "3.8"
 include = ["main.py", "app", "local_backend"]
+reportMissingImports = false
+reportMissingModuleSource = false
 venvPath = "."
 venv = ".venv"
